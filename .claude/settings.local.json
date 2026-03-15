@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(npm install zustand idb date-fns)",
+      "Bash(npm install -D tailwindcss @tailwindcss/vite)",
+      "Bash(npm install -D tailwindcss @tailwindcss/vite --legacy-peer-deps)",
+      "Bash(npx tsc --noEmit)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(node node_modules/typescript/bin/tsc --noEmit)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run:*)",
+      "Bash(gh auth:*)"
+    ]
+  }
+}

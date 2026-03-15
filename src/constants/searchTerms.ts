@@ -1,0 +1,15 @@
+export const TOPIC_TERMS = [
+  'lung cancer',
+  'lung neoplasms',
+  'NSCLC',
+  'SCLC',
+  'non-small cell lung',
+  'small cell lung',
+  'mesothelioma',
+  'thoracic oncology',
+  'thoracic neoplasms',
+  'thymoma',
+  'thymic carcinoma',
+  'lung adenocarcinoma',
+  'lung squamous cell carcinoma',
+];

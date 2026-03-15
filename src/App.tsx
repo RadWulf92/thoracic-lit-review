@@ -1,0 +1,180 @@
+import { useEffect, useState } from 'react';
+import { usePaperStore } from './stores/paperStore';
+import { useReadingListStore } from './stores/readingListStore';
+import { useFilteredPapers } from './hooks/useFilteredPapers';
+import { Header } from './components/layout/Header';
+import { FilterBar } from './components/filters/FilterBar';
+import { PaperList } from './components/papers/PaperList';
+import { WeeklyView } from './components/weekly/WeeklyView';
+import { ArticleSearch } from './components/search/ArticleSearch';
+import { ReadingListView } from './components/search/ReadingListView';
+import { LoadingSpinner } from './components/common/LoadingSpinner';
+import { SettingsPanel } from './components/settings/SettingsPanel';
+import { StatsPanel } from './components/dashboard/StatsPanel';
+
+type ViewMode = 'list' | 'weekly' | 'search' | 'reading-list';
+
+const NAV_ITEMS: { id: ViewMode; label: string; mobileLabel: string; icon: React.ReactNode }[] = [
+  {
+    id: 'list',
+    label: 'List',
+    mobileLabel: 'List',
+    icon: (
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+      </svg>
+    ),
+  },
+  {
+    id: 'weekly',
+    label: 'Weekly',
+    mobileLabel: 'Weekly',
+    icon: (
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+      </svg>
+    ),
+  },
+  {
+    id: 'search',
+    label: 'Search PubMed',
+    mobileLabel: 'Search',
+    icon: (
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+      </svg>
+    ),
+  },
+  {
+    id: 'reading-list',
+    label: 'Reading List',
+    mobileLabel: 'Reading',
+    icon: (
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+      </svg>
+    ),
+  },
+];
+
+function App() {
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const loadCachedPapers = usePaperStore(s => s.loadCachedPapers);
+  const error = usePaperStore(s => s.error);
+  const clearError = usePaperStore(s => s.clearError);
+  const isLoading = usePaperStore(s => s.isLoading);
+  const papers = usePaperStore(s => s.papers);
+  const readingListCount = useReadingListStore(s => s.pmids.length);
+
+  const filteredPapers = useFilteredPapers();
+
+  // Load cached papers on mount
+  useEffect(() => {
+    loadCachedPapers();
+  }, [loadCachedPapers]);
+
+  return (
+    <div className="min-h-screen bg-gray-50 pb-16 sm:pb-0">
+      <Header onOpenSettings={() => setSettingsOpen(true)} />
+      <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+
+      <main className="max-w-6xl mx-auto px-4 py-4 sm:py-6">
+        {/* Error banner */}
+        {error && (
+          <div className="mb-4 flex items-center justify-between bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+            <span>{error}</span>
+            <button
+              type="button"
+              onClick={clearError}
+              className="text-red-500 hover:text-red-700"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
+
+        {/* Desktop tab navigation — always visible */}
+        <div className="hidden sm:flex items-center gap-1 mb-5 border-b border-gray-200">
+          {NAV_ITEMS.map(item => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setViewMode(item.id)}
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                viewMode === item.id
+                  ? 'border-cyan-600 text-cyan-700'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              {item.icon}
+              {item.label}
+              {item.id === 'reading-list' && readingListCount > 0 && (
+                <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-cyan-100 text-cyan-700">
+                  {readingListCount}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Paper views: stats, filters, count */}
+        {(viewMode === 'list' || viewMode === 'weekly') && (
+          <>
+            <StatsPanel />
+            <div className="mb-4">
+              <FilterBar />
+            </div>
+            <p className="text-sm text-gray-500 mb-3">
+              Showing {filteredPapers.length} of {papers.length} papers
+            </p>
+          </>
+        )}
+
+        {/* Content */}
+        {viewMode === 'search' && <ArticleSearch />}
+        {viewMode === 'reading-list' && <ReadingListView />}
+        {viewMode === 'list' && (
+          isLoading && papers.length === 0
+            ? <LoadingSpinner message="Loading papers..." />
+            : <PaperList papers={filteredPapers} />
+        )}
+        {viewMode === 'weekly' && (
+          isLoading && papers.length === 0
+            ? <LoadingSpinner message="Loading papers..." />
+            : <WeeklyView papers={filteredPapers} />
+        )}
+      </main>
+
+      {/* Mobile bottom navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 sm:hidden z-20">
+        <div className="flex items-center justify-around">
+          {NAV_ITEMS.map(item => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setViewMode(item.id)}
+              className={`flex flex-col items-center gap-0.5 py-2 px-3 text-xs transition-colors relative ${
+                viewMode === item.id
+                  ? 'text-cyan-600'
+                  : 'text-gray-400'
+              }`}
+            >
+              {item.icon}
+              <span>{item.mobileLabel}</span>
+              {item.id === 'reading-list' && readingListCount > 0 && (
+                <span className="absolute -top-0.5 right-0.5 bg-cyan-600 text-white text-[10px] min-w-[16px] h-4 flex items-center justify-center rounded-full px-1">
+                  {readingListCount}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </nav>
+    </div>
+  );
+}
+
+export default App;
