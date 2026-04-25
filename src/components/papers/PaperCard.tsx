@@ -216,6 +216,7 @@ export function PaperCard({ paper, showReadingListRemove }: PaperCardProps) {
 
             {/* Trial Data */}
             <TrialDataEditor
+              paper={paper}
               data={trialData}
               onSave={(d) => setTrialData(paper.pmid, d)}
             />

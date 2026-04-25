@@ -9,6 +9,7 @@ import { Header } from './components/layout/Header';
 import { FilterBar } from './components/filters/FilterBar';
 import { PaperList } from './components/papers/PaperList';
 import { PriorityQueue } from './components/priority/PriorityQueue';
+import { InsightsPanel } from './components/insights/InsightsPanel';
 import { WeeklyView } from './components/weekly/WeeklyView';
 import { ArticleSearch } from './components/search/ArticleSearch';
 import { ReadingListView } from './components/search/ReadingListView';
@@ -18,17 +19,29 @@ import { SettingsPanel } from './components/settings/SettingsPanel';
 import { StatsPanel } from './components/dashboard/StatsPanel';
 import type { Collection } from './utils/queryBuilder';
 
-type ViewMode = 'priority' | 'list' | 'weekly' | 'search' | 'reading-list' | 'review';
+type ViewMode = 'priority' | 'insights' | 'list' | 'weekly' | 'search' | 'reading-list' | 'review';
 
 const NAV_ITEMS: { id: ViewMode; label: string; mobileLabel: string; icon: React.ReactNode }[] = [
   {
     id: 'priority',
     label: 'Priority',
-    mobileLabel: 'Priority',
+    mobileLabel: 'Top',
     icon: (
       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 3.75l2.142 4.339 4.79.696-3.466 3.378.818 4.771L12 14.681l-4.284 2.253.818-4.771-3.466-3.378 4.79-.696L12 3.75z" />
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75v1.5m-5.25-1.5l-1.061 1.061m11.561-1.061l1.061 1.061" />
+      </svg>
+    ),
+  },
+  {
+    id: 'insights',
+    label: 'Insights',
+    mobileLabel: 'Charts',
+    icon: (
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
       </svg>
     ),
   },
@@ -65,7 +78,7 @@ const NAV_ITEMS: { id: ViewMode; label: string; mobileLabel: string; icon: React
   {
     id: 'reading-list',
     label: 'Reading List',
-    mobileLabel: 'Reading',
+    mobileLabel: 'Saved',
     icon: (
       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
@@ -197,6 +210,11 @@ function App() {
             ? <LoadingSpinner message="Loading papers..." />
             : <PriorityQueue />
         )}
+        {viewMode === 'insights' && (
+          isLoading && papers.length === 0
+            ? <LoadingSpinner message="Loading papers..." />
+            : <InsightsPanel />
+        )}
         {viewMode === 'search' && <ArticleSearch />}
         {viewMode === 'reading-list' && <ReadingListView />}
         {viewMode === 'review' && <ReviewMode />}
@@ -214,20 +232,20 @@ function App() {
 
       {/* Mobile bottom navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 pb-[env(safe-area-inset-bottom)] sm:hidden z-20">
-        <div className="flex items-center justify-around">
+        <div className="grid grid-cols-7">
           {NAV_ITEMS.map(item => (
             <button
               key={item.id}
               type="button"
               onClick={() => setViewMode(item.id)}
-              className={`flex flex-col items-center gap-0.5 py-2 px-2 text-[10px] transition-colors relative ${
+              className={`relative flex min-w-0 flex-col items-center gap-0.5 px-1 py-2 text-[10px] leading-none transition-colors ${
                 viewMode === item.id
                   ? 'text-cyan-600'
                   : 'text-gray-400'
               }`}
             >
               {item.icon}
-              <span>{item.mobileLabel}</span>
+              <span className="w-full truncate text-center">{item.mobileLabel}</span>
               {item.id === 'reading-list' && readingListCount > 0 && (
                 <span className="absolute -top-0.5 right-0.5 bg-cyan-600 text-white text-[10px] min-w-[16px] h-4 flex items-center justify-center rounded-full px-1">
                   {readingListCount}

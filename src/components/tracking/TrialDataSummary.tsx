@@ -8,7 +8,9 @@ export function TrialDataSummary({ data }: TrialDataSummaryProps) {
   const parts: string[] = [];
 
   if (data.trialName) parts.push(data.trialName);
-  if (data.phase) parts.push(`Phase ${data.phase}`);
+  if (data.phase) {
+    parts.push(data.phase.toLowerCase().startsWith('phase') ? data.phase : `Phase ${data.phase}`);
+  }
   if (data.nPatients) parts.push(`N=${data.nPatients}`);
 
   // Build results summary
