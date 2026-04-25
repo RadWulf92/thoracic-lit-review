@@ -1,7 +1,7 @@
 import { PUBMED_ESEARCH, PUBMED_EFETCH, REQUESTS_PER_SECOND, EFETCH_BATCH_SIZE, DEFAULT_RETMAX } from '../constants/config';
 import { RateLimiter } from '../utils/rateLimiter';
 import { parsePubMedXml } from '../utils/xmlParser';
-import { buildPubMedQuery, formatDateForPubMed } from '../utils/queryBuilder';
+import { buildPubMedQuery, formatDateForPubMed, type Collection } from '../utils/queryBuilder';
 import { cachePapers, getCachedPmids } from './paperCache';
 import type { Paper } from '../types/paper';
 import type { JournalInfo } from '../constants/journals';
@@ -81,11 +81,12 @@ export async function fetchPapersForDateRange(
   from: Date,
   to: Date,
   onProgress?: (msg: string) => void,
-  journals?: JournalInfo[]
+  journals?: JournalInfo[],
+  collection?: Collection
 ): Promise<Paper[]> {
   const dateFrom = formatDateForPubMed(from);
   const dateTo = formatDateForPubMed(to);
-  const query = buildPubMedQuery(dateFrom, dateTo, journals);
+  const query = buildPubMedQuery(dateFrom, dateTo, journals, collection);
 
   onProgress?.(`Searching PubMed...`);
   const pmids = await esearch(query);

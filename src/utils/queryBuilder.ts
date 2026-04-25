@@ -1,8 +1,11 @@
 import { TARGET_JOURNALS, type JournalInfo } from '../constants/journals';
-import { TOPIC_TERMS } from '../constants/searchTerms';
+import { TOPIC_TERMS, ACUTE_ONCOLOGY_TERMS } from '../constants/searchTerms';
 
-export function buildPubMedQuery(dateFrom: string, dateTo: string, journals?: JournalInfo[]): string {
+export type Collection = 'thoracic' | 'acute-oncology';
+
+export function buildPubMedQuery(dateFrom: string, dateTo: string, journals?: JournalInfo[], collection?: Collection): string {
   const journalList = journals ?? TARGET_JOURNALS;
+  const terms = collection === 'acute-oncology' ? ACUTE_ONCOLOGY_TERMS : TOPIC_TERMS;
 
   const thoracicJournals = journalList
     .filter(j => j.isThoracicSpecific)
@@ -12,7 +15,7 @@ export function buildPubMedQuery(dateFrom: string, dateTo: string, journals?: Jo
     .filter(j => !j.isThoracicSpecific)
     .map(j => `"${j.abbrev}"[journal]`);
 
-  const topicQuery = TOPIC_TERMS
+  const topicQuery = terms
     .map(t => `"${t}"`)
     .join(' OR ');
 
@@ -20,12 +23,20 @@ export function buildPubMedQuery(dateFrom: string, dateTo: string, journals?: Jo
 
   const parts: string[] = [];
 
-  if (thoracicJournals.length > 0) {
-    parts.push(`(${thoracicJournals.join(' OR ')}) AND ${dateRange}`);
-  }
+  // For acute oncology, all journals are broad (topic-filtered)
+  if (collection === 'acute-oncology') {
+    const allJournals = [...thoracicJournals, ...broadJournals];
+    if (allJournals.length > 0) {
+      parts.push(`(${allJournals.join(' OR ')}) AND (${topicQuery}) AND ${dateRange}`);
+    }
+  } else {
+    if (thoracicJournals.length > 0) {
+      parts.push(`(${thoracicJournals.join(' OR ')}) AND ${dateRange}`);
+    }
 
-  if (broadJournals.length > 0) {
-    parts.push(`(${broadJournals.join(' OR ')}) AND (${topicQuery}) AND ${dateRange}`);
+    if (broadJournals.length > 0) {
+      parts.push(`(${broadJournals.join(' OR ')}) AND (${topicQuery}) AND ${dateRange}`);
+    }
   }
 
   if (parts.length === 0) return '';

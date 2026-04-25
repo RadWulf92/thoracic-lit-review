@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { FilterState, SortField, SortDirection } from '../types/filters';
 import type { PaperCategory } from '../utils/paperClassifier';
-import type { ClinicalRelevance } from '../types/paper';
+import type { ClinicalRelevance, PaperPriority } from '../types/paper';
 
 interface FilterStore {
   filters: FilterState;
@@ -14,6 +14,7 @@ interface FilterStore {
   setRatingMin: (min: number) => void;
   setTags: (tags: string[]) => void;
   setRelevanceFilter: (relevance: ClinicalRelevance[]) => void;
+  setPriorityFilter: (priority: PaperPriority[]) => void;
   setSort: (field: SortField, direction: SortDirection) => void;
   resetFilters: () => void;
 }
@@ -28,6 +29,7 @@ const defaultFilters: FilterState = {
   ratingMin: 0,
   tags: [],
   relevance: [],
+  priority: [],
   sortField: 'date',
   sortDirection: 'desc',
 };
@@ -58,6 +60,9 @@ export const useFilterStore = create<FilterStore>((set) => ({
 
   setRelevanceFilter: (relevance) =>
     set(s => ({ filters: { ...s.filters, relevance } })),
+
+  setPriorityFilter: (priority) =>
+    set(s => ({ filters: { ...s.filters, priority } })),
 
   setSort: (field, direction) =>
     set(s => ({ filters: { ...s.filters, sortField: field, sortDirection: direction } })),

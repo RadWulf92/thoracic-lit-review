@@ -1,20 +1,37 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePaperStore } from './stores/paperStore';
 import { useReadingListStore } from './stores/readingListStore';
+import { useAuthStore } from './stores/authStore';
+import { useSettingsStore } from './stores/settingsStore';
+import { startSync } from './services/firestoreSync';
 import { useFilteredPapers } from './hooks/useFilteredPapers';
 import { Header } from './components/layout/Header';
 import { FilterBar } from './components/filters/FilterBar';
 import { PaperList } from './components/papers/PaperList';
+import { PriorityQueue } from './components/priority/PriorityQueue';
 import { WeeklyView } from './components/weekly/WeeklyView';
 import { ArticleSearch } from './components/search/ArticleSearch';
 import { ReadingListView } from './components/search/ReadingListView';
+import { ReviewMode } from './components/review/ReviewMode';
 import { LoadingSpinner } from './components/common/LoadingSpinner';
 import { SettingsPanel } from './components/settings/SettingsPanel';
 import { StatsPanel } from './components/dashboard/StatsPanel';
+import type { Collection } from './utils/queryBuilder';
 
-type ViewMode = 'list' | 'weekly' | 'search' | 'reading-list';
+type ViewMode = 'priority' | 'list' | 'weekly' | 'search' | 'reading-list' | 'review';
 
 const NAV_ITEMS: { id: ViewMode; label: string; mobileLabel: string; icon: React.ReactNode }[] = [
+  {
+    id: 'priority',
+    label: 'Priority',
+    mobileLabel: 'Priority',
+    icon: (
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3.75l2.142 4.339 4.79.696-3.466 3.378.818 4.771L12 14.681l-4.284 2.253.818-4.771-3.466-3.378 4.79-.696L12 3.75z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75v1.5m-5.25-1.5l-1.061 1.061m11.561-1.061l1.061 1.061" />
+      </svg>
+    ),
+  },
   {
     id: 'list',
     label: 'List',
@@ -55,29 +72,70 @@ const NAV_ITEMS: { id: ViewMode; label: string; mobileLabel: string; icon: React
       </svg>
     ),
   },
+  {
+    id: 'review',
+    label: 'Study Mode',
+    mobileLabel: 'Study',
+    icon: (
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.438 60.438 0 00-.491 6.347A48.62 48.62 0 0112 20.904a48.62 48.62 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.636 50.636 0 00-2.658-.813A59.906 59.906 0 0112 3.493a59.903 59.903 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0112 13.489a50.702 50.702 0 017.74-3.342" />
+      </svg>
+    ),
+  },
 ];
 
 function App() {
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [viewMode, setViewMode] = useState<ViewMode>('priority');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [activeCollection, setActiveCollection] = useState<Collection>('thoracic');
   const loadCachedPapers = usePaperStore(s => s.loadCachedPapers);
+  const journals = useSettingsStore(s => s.journals);
+  const acuteJournals = useSettingsStore(s => s.acuteJournals);
   const error = usePaperStore(s => s.error);
   const clearError = usePaperStore(s => s.clearError);
   const isLoading = usePaperStore(s => s.isLoading);
   const papers = usePaperStore(s => s.papers);
   const readingListCount = useReadingListStore(s => s.pmids.length);
+  const user = useAuthStore(s => s.user);
 
   const filteredPapers = useFilteredPapers();
+  const stopSyncRef = useRef<(() => void) | null>(null);
 
-  // Load cached papers on mount
+  const handleCollectionChange = (coll: Collection) => {
+    setActiveCollection(coll);
+    const journalList = coll === 'acute-oncology' ? acuteJournals : journals;
+    const abbrevs = journalList.map(j => j.abbrev);
+    loadCachedPapers(abbrevs);
+  };
+
+  // Load cached papers on mount, filtered by the current collection.
   useEffect(() => {
-    loadCachedPapers();
-  }, [loadCachedPapers]);
+    const journalList = activeCollection === 'acute-oncology' ? acuteJournals : journals;
+    loadCachedPapers(journalList.map(j => j.abbrev));
+  }, [activeCollection, acuteJournals, journals, loadCachedPapers]);
+
+  // Start/stop Firestore sync when auth state changes
+  useEffect(() => {
+    if (user) {
+      stopSyncRef.current = startSync(user.uid);
+    } else {
+      stopSyncRef.current?.();
+      stopSyncRef.current = null;
+    }
+    return () => {
+      stopSyncRef.current?.();
+      stopSyncRef.current = null;
+    };
+  }, [user]);
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-16 sm:pb-0">
-      <Header onOpenSettings={() => setSettingsOpen(true)} />
-      <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+    <div className="min-h-screen bg-gray-50 pb-[calc(4rem+env(safe-area-inset-bottom))] sm:pb-0">
+      <Header
+        onOpenSettings={() => setSettingsOpen(true)}
+        activeCollection={activeCollection}
+        onCollectionChange={handleCollectionChange}
+      />
+      <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} activeCollection={activeCollection} />
 
       <main className="max-w-6xl mx-auto px-4 py-4 sm:py-6">
         {/* Error banner */}
@@ -96,7 +154,7 @@ function App() {
           </div>
         )}
 
-        {/* Desktop tab navigation — always visible */}
+        {/* Desktop tab navigation */}
         <div className="hidden sm:flex items-center gap-1 mb-5 border-b border-gray-200">
           {NAV_ITEMS.map(item => (
             <button
@@ -134,8 +192,14 @@ function App() {
         )}
 
         {/* Content */}
+        {viewMode === 'priority' && (
+          isLoading && papers.length === 0
+            ? <LoadingSpinner message="Loading papers..." />
+            : <PriorityQueue />
+        )}
         {viewMode === 'search' && <ArticleSearch />}
         {viewMode === 'reading-list' && <ReadingListView />}
+        {viewMode === 'review' && <ReviewMode />}
         {viewMode === 'list' && (
           isLoading && papers.length === 0
             ? <LoadingSpinner message="Loading papers..." />
@@ -149,14 +213,14 @@ function App() {
       </main>
 
       {/* Mobile bottom navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 sm:hidden z-20">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 pb-[env(safe-area-inset-bottom)] sm:hidden z-20">
         <div className="flex items-center justify-around">
           {NAV_ITEMS.map(item => (
             <button
               key={item.id}
               type="button"
               onClick={() => setViewMode(item.id)}
-              className={`flex flex-col items-center gap-0.5 py-2 px-3 text-xs transition-colors relative ${
+              className={`flex flex-col items-center gap-0.5 py-2 px-2 text-[10px] transition-colors relative ${
                 viewMode === item.id
                   ? 'text-cyan-600'
                   : 'text-gray-400'

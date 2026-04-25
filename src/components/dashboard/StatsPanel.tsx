@@ -2,7 +2,16 @@ import { useState, useMemo } from 'react';
 import { usePaperStore } from '../../stores/paperStore';
 import { useTrackingStore } from '../../stores/trackingStore';
 import { classifyPaper, ALL_PAPER_CATEGORIES, CATEGORY_COLORS, type PaperCategory } from '../../utils/paperClassifier';
-import { ALL_RELEVANCE_LEVELS, RELEVANCE_LABELS, RELEVANCE_COLORS, type ClinicalRelevance } from '../../types/paper';
+import {
+  ALL_PRIORITY_LEVELS,
+  ALL_RELEVANCE_LEVELS,
+  PRIORITY_COLORS,
+  PRIORITY_LABELS,
+  RELEVANCE_LABELS,
+  RELEVANCE_COLORS,
+  type ClinicalRelevance,
+  type PaperPriority,
+} from '../../types/paper';
 
 export function StatsPanel() {
   const [isOpen, setIsOpen] = useState(false);
@@ -16,6 +25,8 @@ export function StatsPanel() {
     const byJournal = new Map<string, number>();
     const byRelevance = new Map<ClinicalRelevance, number>();
     for (const r of ALL_RELEVANCE_LEVELS) byRelevance.set(r, 0);
+    const byPriority = new Map<PaperPriority, number>();
+    for (const p of ALL_PRIORITY_LEVELS) byPriority.set(p, 0);
 
     const tagCounts = new Map<string, number>();
     let readCount = 0;
@@ -39,6 +50,9 @@ export function StatsPanel() {
       if (t?.relevance) {
         byRelevance.set(t.relevance, (byRelevance.get(t.relevance) ?? 0) + 1);
         relevanceCount++;
+      }
+      if (t?.priority) {
+        byPriority.set(t.priority, (byPriority.get(t.priority) ?? 0) + 1);
       }
       if (t?.tags && t.tags.length > 0) {
         taggedCount++;
@@ -69,6 +83,7 @@ export function StatsPanel() {
       byType,
       byJournal: Array.from(byJournal.entries()).sort((a, b) => b[1] - a[1]),
       byRelevance,
+      byPriority,
       topTags,
       topRated,
       readPercent: papers.length > 0 ? Math.round((readCount / papers.length) * 100) : 0,
@@ -146,6 +161,23 @@ export function StatsPanel() {
 
             {/* By clinical relevance */}
             <div>
+              <h4 className="text-xs font-medium text-gray-500 mb-2">By Priority</h4>
+              <div className="space-y-1 mb-3">
+                {ALL_PRIORITY_LEVELS.map(level => {
+                  const count = stats.byPriority.get(level) ?? 0;
+                  if (count === 0) return null;
+                  const colorClass = PRIORITY_COLORS[level];
+                  return (
+                    <div key={level} className="flex items-center justify-between">
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full border ${colorClass}`}>
+                        {PRIORITY_LABELS[level]}
+                      </span>
+                      <span className="text-xs text-gray-500 font-medium">{count}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
               <h4 className="text-xs font-medium text-gray-500 mb-2">By Clinical Relevance</h4>
               <div className="space-y-1">
                 {ALL_RELEVANCE_LEVELS.map(level => {

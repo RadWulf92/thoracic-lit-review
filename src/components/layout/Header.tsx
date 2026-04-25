@@ -2,17 +2,38 @@ import { useState } from 'react';
 import { usePaperStore } from '../../stores/paperStore';
 import { useTrackingStore } from '../../stores/trackingStore';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { useAuthStore } from '../../stores/authStore';
 import { exportPapersAsCsv } from '../../utils/exportCsv';
 import { subWeeks } from 'date-fns';
+import type { Collection } from '../../utils/queryBuilder';
 
 interface HeaderProps {
   onOpenSettings: () => void;
+  activeCollection: Collection;
+  onCollectionChange: (c: Collection) => void;
 }
 
-export function Header({ onOpenSettings }: HeaderProps) {
+const COLLECTION_CONFIG: Record<Collection, { label: string; shortLabel: string; color: string; activeColor: string }> = {
+  'thoracic': {
+    label: 'Thoracic Oncology',
+    shortLabel: 'Thoracic',
+    color: 'border-cyan-200 text-cyan-700 bg-cyan-50 hover:bg-cyan-100',
+    activeColor: 'border-cyan-600 bg-cyan-600 text-white',
+  },
+  'acute-oncology': {
+    label: 'Acute Oncology',
+    shortLabel: 'Acute Onc',
+    color: 'border-orange-200 text-orange-700 bg-orange-50 hover:bg-orange-100',
+    activeColor: 'border-orange-600 bg-orange-600 text-white',
+  },
+};
+
+export function Header({ onOpenSettings, activeCollection, onCollectionChange }: HeaderProps) {
   const { isLoading, progressMessage, lastFetchedAt, papers, fetchPapers } = usePaperStore();
   const tracking = useTrackingStore(s => s.tracking);
   const journals = useSettingsStore(s => s.journals);
+  const acuteJournals = useSettingsStore(s => s.acuteJournals);
+  const { user, syncStatus } = useAuthStore();
 
   const [weeksBack, setWeeksBack] = useState(4);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -23,7 +44,8 @@ export function Header({ onOpenSettings }: HeaderProps) {
   const handleFetch = () => {
     const now = new Date();
     const from = subWeeks(now, weeksBack);
-    fetchPapers(from, now, journals);
+    const journalList = activeCollection === 'acute-oncology' ? acuteJournals : journals;
+    fetchPapers(from, now, journalList, activeCollection);
   };
 
   const handleExport = () => {
@@ -35,6 +57,8 @@ export function Header({ onOpenSettings }: HeaderProps) {
     ? new Date(lastFetchedAt).toLocaleString()
     : 'Never';
 
+  const collConfig = COLLECTION_CONFIG[activeCollection];
+
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
       <div className="max-w-6xl mx-auto px-4 py-3 sm:py-4">
@@ -42,7 +66,7 @@ export function Header({ onOpenSettings }: HeaderProps) {
           {/* Title and stats */}
           <div className="min-w-0">
             <h1 className="text-base sm:text-xl font-bold text-gray-900 truncate">
-              Thoracic Oncology Lit Review
+              {collConfig.label} Lit Review
             </h1>
             <div className="flex items-center gap-2 sm:gap-3 mt-0.5 text-[11px] sm:text-xs text-gray-500">
               <span>{totalCount} papers</span>
@@ -57,6 +81,42 @@ export function Header({ onOpenSettings }: HeaderProps) {
 
           {/* Desktop fetch controls */}
           <div className="hidden sm:flex items-center gap-2">
+            {/* Collection toggle */}
+            <div className="flex items-center rounded-lg overflow-hidden">
+              {(Object.keys(COLLECTION_CONFIG) as Collection[]).map(coll => {
+                const cfg = COLLECTION_CONFIG[coll];
+                return (
+                  <button
+                    key={coll}
+                    type="button"
+                    onClick={() => onCollectionChange(coll)}
+                    className={`px-3 py-1.5 text-xs font-medium border transition-colors ${
+                      activeCollection === coll ? cfg.activeColor : cfg.color
+                    }`}
+                  >
+                    {cfg.shortLabel}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Sync status indicator */}
+            {user && (
+              <div
+                className="p-2 text-gray-400 relative"
+                title={syncStatus === 'synced' ? 'Cloud sync active' : syncStatus === 'syncing' ? 'Syncing...' : syncStatus === 'error' ? 'Sync error' : 'Not syncing'}
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z" />
+                </svg>
+                <span className={`absolute top-1.5 right-1.5 inline-block h-2.5 w-2.5 rounded-full border-2 border-white ${
+                  syncStatus === 'synced' ? 'bg-green-500' :
+                  syncStatus === 'syncing' ? 'bg-yellow-400 animate-pulse' :
+                  syncStatus === 'error' ? 'bg-red-500' : 'bg-gray-400'
+                }`} />
+              </div>
+            )}
+
             {papers.length > 0 && (
               <button
                 type="button"
@@ -98,7 +158,11 @@ export function Header({ onOpenSettings }: HeaderProps) {
               type="button"
               onClick={handleFetch}
               disabled={isLoading}
-              className="flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white text-sm font-medium rounded-lg hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className={`flex items-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${
+                activeCollection === 'acute-oncology'
+                  ? 'bg-orange-600 hover:bg-orange-700'
+                  : 'bg-cyan-600 hover:bg-cyan-700'
+              }`}
             >
               {isLoading ? (
                 <>
@@ -147,6 +211,25 @@ export function Header({ onOpenSettings }: HeaderProps) {
         {/* Mobile expanded menu */}
         {mobileMenuOpen && (
           <div className="sm:hidden mt-3 pt-3 border-t border-gray-100 space-y-3">
+            {/* Collection toggle mobile */}
+            <div className="flex items-center gap-2">
+              {(Object.keys(COLLECTION_CONFIG) as Collection[]).map(coll => {
+                const cfg = COLLECTION_CONFIG[coll];
+                return (
+                  <button
+                    key={coll}
+                    type="button"
+                    onClick={() => onCollectionChange(coll)}
+                    className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg border transition-colors ${
+                      activeCollection === coll ? cfg.activeColor : cfg.color
+                    }`}
+                  >
+                    {cfg.label}
+                  </button>
+                );
+              })}
+            </div>
+
             <div className="text-xs text-gray-500">
               Last fetch: {lastFetchDisplay}
             </div>
@@ -167,7 +250,11 @@ export function Header({ onOpenSettings }: HeaderProps) {
                 type="button"
                 onClick={() => { handleFetch(); setMobileMenuOpen(false); }}
                 disabled={isLoading}
-                className="flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white text-sm font-medium rounded-lg hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className={`flex items-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${
+                  activeCollection === 'acute-oncology'
+                    ? 'bg-orange-600 hover:bg-orange-700'
+                    : 'bg-cyan-600 hover:bg-cyan-700'
+                }`}
               >
                 {isLoading ? (
                   <>

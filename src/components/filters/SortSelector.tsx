@@ -7,6 +7,7 @@ const SORT_OPTIONS: { value: SortField; label: string }[] = [
   { value: 'readStatus', label: 'Read Status' },
   { value: 'journal', label: 'Journal' },
   { value: 'relevance', label: 'Relevance' },
+  { value: 'priority', label: 'Priority' },
 ];
 
 export function SortSelector() {

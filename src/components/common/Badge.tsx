@@ -14,19 +14,6 @@ const COLOR_CLASSES: Record<string, string> = {
   'journal-transl-lung': 'bg-purple-100 text-purple-800 border-purple-300',
 };
 
-const BORDER_COLORS: Record<string, string> = {
-  'journal-jto': 'border-l-cyan-600',
-  'journal-lung-cancer': 'border-l-violet-600',
-  'journal-lancet-oncol': 'border-l-red-600',
-  'journal-jco': 'border-l-blue-600',
-  'journal-ann-oncol': 'border-l-emerald-600',
-  'journal-nejm': 'border-l-red-700',
-  'journal-chest': 'border-l-amber-600',
-  'journal-erj': 'border-l-indigo-600',
-  'journal-clin-lung': 'border-l-teal-600',
-  'journal-transl-lung': 'border-l-purple-600',
-};
-
 export function JournalBadge({ abbrev }: { abbrev: string }) {
   const journal = TARGET_JOURNALS.find(j => j.abbrev === abbrev);
   const colorClass = journal ? (COLOR_CLASSES[journal.color] ?? 'bg-gray-100 text-gray-700 border-gray-300') : 'bg-gray-100 text-gray-700 border-gray-300';
@@ -53,9 +40,4 @@ export function AheadOfPrintBadge() {
       Ahead of Print
     </span>
   );
-}
-
-export function getCardBorderClass(abbrev: string): string {
-  const journal = TARGET_JOURNALS.find(j => j.abbrev === abbrev);
-  return journal ? (BORDER_COLORS[journal.color] ?? 'border-l-gray-300') : 'border-l-gray-300';
 }

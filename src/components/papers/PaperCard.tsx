@@ -3,15 +3,19 @@ import type { Paper } from '../../types/paper';
 import { useTrackingStore } from '../../stores/trackingStore';
 import { useFilterStore } from '../../stores/filterStore';
 import { useReadingListStore } from '../../stores/readingListStore';
-import { JournalBadge, PaperTypeBadge, AheadOfPrintBadge, getCardBorderClass } from '../common/Badge';
+import { JournalBadge, PaperTypeBadge, AheadOfPrintBadge } from '../common/Badge';
 import { StarRating } from '../tracking/StarRating';
 import { ReadStatusBadge } from '../tracking/ReadStatusBadge';
 import { NotesEditor, NotesIndicator } from '../tracking/NotesEditor';
 import { TagInput, TagsDisplay } from '../tracking/TagInput';
 import { RelevanceSelector, RelevanceBadge } from '../tracking/RelevanceSelector';
+import { PrioritySelector, PriorityBadge } from '../tracking/PrioritySelector';
 import { TakeawayField, TakeawayDisplay } from '../tracking/TakeawayField';
+import { TrialDataEditor } from '../tracking/TrialDataEditor';
+import { TrialDataSummary } from '../tracking/TrialDataSummary';
 import { classifyPaper } from '../../utils/paperClassifier';
 import { HighlightedText } from '../../utils/highlighter';
+import { getCardBorderClass } from '../../utils/journalStyles';
 import { format, parseISO } from 'date-fns';
 
 interface PaperCardProps {
@@ -33,11 +37,15 @@ export function PaperCard({ paper, showReadingListRemove }: PaperCardProps) {
 
   const tracking = useTrackingStore(s => s.tracking[paper.pmid]);
   const toggleRead = useTrackingStore(s => s.toggleRead);
+  const addToReadingList = useReadingListStore(s => s.addToReadingList);
   const removeFromReadingList = useReadingListStore(s => s.removeFromReadingList);
+  const isInReadingList = useReadingListStore(s => s.isInReadingList);
   const setRating = useTrackingStore(s => s.setRating);
   const updateNotes = useTrackingStore(s => s.updateNotes);
   const setRelevance = useTrackingStore(s => s.setRelevance);
+  const setPriority = useTrackingStore(s => s.setPriority);
   const setTakeaway = useTrackingStore(s => s.setTakeaway);
+  const setTrialData = useTrackingStore(s => s.setTrialData);
   const searchQuery = useFilterStore(s => s.filters.searchQuery);
 
   const isRead = tracking?.isRead ?? false;
@@ -45,7 +53,10 @@ export function PaperCard({ paper, showReadingListRemove }: PaperCardProps) {
   const notes = tracking?.notes ?? '';
   const tags = tracking?.tags ?? [];
   const relevance = tracking?.relevance;
+  const priority = tracking?.priority;
   const takeaway = tracking?.takeaway ?? '';
+  const trialData = tracking?.trialData;
+  const savedForLater = isInReadingList(paper.pmid);
 
   const borderClass = getCardBorderClass(paper.journalAbbrev);
   const pubDate = paper.pubDate ? format(parseISO(paper.pubDate), 'MMM d, yyyy') : '';
@@ -64,6 +75,7 @@ export function PaperCard({ paper, showReadingListRemove }: PaperCardProps) {
             <JournalBadge abbrev={paper.journalAbbrev} />
             <PaperTypeBadge category={category} />
             {paper.pubStatus === 'aheadofprint' && <AheadOfPrintBadge />}
+            {priority && <PriorityBadge priority={priority} />}
             {relevance && <RelevanceBadge relevance={relevance} />}
           </div>
           <span className="text-xs text-gray-400 shrink-0 ml-2">{pubDate}</span>
@@ -90,6 +102,13 @@ export function PaperCard({ paper, showReadingListRemove }: PaperCardProps) {
           </div>
         )}
 
+        {/* Trial Data Summary (visible on collapsed card when data exists) */}
+        {!isExpanded && trialData && (
+          <div className="mt-1.5">
+            <TrialDataSummary data={trialData} />
+          </div>
+        )}
+
         {/* Tags (visible on collapsed card when set) */}
         {!isExpanded && tags.length > 0 && (
           <div className="mt-1.5">
@@ -98,14 +117,42 @@ export function PaperCard({ paper, showReadingListRemove }: PaperCardProps) {
         )}
 
         {/* Actions row */}
-        <div className="flex items-center justify-between mt-3">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-3 mt-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3 flex-wrap">
             <ReadStatusBadge isRead={isRead} onToggle={() => toggleRead(paper.pmid)} />
             <StarRating rating={rating} onChange={(r) => setRating(paper.pmid, r)} />
             <NotesIndicator hasNotes={!!notes} onClick={() => setShowNotes(!showNotes)} />
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap justify-end sm:justify-start">
+            {!showReadingListRemove && (
+              <button
+                type="button"
+                onClick={() => savedForLater ? removeFromReadingList(paper.pmid) : addToReadingList(paper.pmid)}
+                className={`flex items-center gap-1 text-xs transition-colors ${
+                  savedForLater
+                    ? 'text-green-700 hover:text-red-600'
+                    : 'text-cyan-600 hover:text-cyan-800'
+                }`}
+                title={savedForLater ? 'Remove from reading list' : 'Add to reading list'}
+              >
+                {savedForLater ? (
+                  <>
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                    Saved
+                  </>
+                ) : (
+                  <>
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                    Save
+                  </>
+                )}
+              </button>
+            )}
             {paper.doi && (
               <a
                 href={`https://doi.org/${paper.doi}`}
@@ -134,6 +181,15 @@ export function PaperCard({ paper, showReadingListRemove }: PaperCardProps) {
         {/* Expanded content */}
         {isExpanded && (
           <div className="mt-4 pt-4 border-t border-gray-100 space-y-4">
+            {/* Priority selector */}
+            <div>
+              <label className="block text-[11px] font-medium text-gray-500 mb-1">Reading Priority</label>
+              <PrioritySelector
+                value={priority}
+                onChange={(p) => setPriority(paper.pmid, p)}
+              />
+            </div>
+
             {/* Clinical Relevance selector */}
             <div>
               <label className="block text-[11px] font-medium text-gray-500 mb-1">Clinical Relevance</label>
@@ -157,6 +213,12 @@ export function PaperCard({ paper, showReadingListRemove }: PaperCardProps) {
               <label className="block text-[11px] font-medium text-gray-500 mb-1">Tags</label>
               <TagInput pmid={paper.pmid} tags={tags} />
             </div>
+
+            {/* Trial Data */}
+            <TrialDataEditor
+              data={trialData}
+              onSave={(d) => setTrialData(paper.pmid, d)}
+            />
 
             {/* Abstract */}
             {paper.abstract ? (

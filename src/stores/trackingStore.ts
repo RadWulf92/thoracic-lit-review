@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { PaperTracking, ClinicalRelevance } from '../types/paper';
+import type { PaperTracking, ClinicalRelevance, PaperPriority, TrialData } from '../types/paper';
 import { STORAGE_KEYS } from '../constants/config';
 
 interface TrackingStore {
@@ -12,7 +12,9 @@ interface TrackingStore {
   addTag: (pmid: string, tag: string) => void;
   removeTag: (pmid: string, tag: string) => void;
   setRelevance: (pmid: string, relevance: ClinicalRelevance | undefined) => void;
+  setPriority: (pmid: string, priority: PaperPriority | undefined) => void;
   setTakeaway: (pmid: string, takeaway: string) => void;
+  setTrialData: (pmid: string, trialData: TrialData) => void;
   getTracking: (pmid: string) => PaperTracking;
   getAllTags: () => string[];
 }
@@ -45,6 +47,7 @@ export const useTrackingStore = create<TrackingStore>()(
                 ...existing,
                 isRead,
                 readAt: isRead ? new Date().toISOString() : undefined,
+                readStatusUpdatedAt: new Date().toISOString(),
               },
             },
           };
@@ -96,6 +99,7 @@ export const useTrackingStore = create<TrackingStore>()(
               [pmid]: {
                 ...existing,
                 tags: [...tags, normalized],
+                tagsUpdatedAt: new Date().toISOString(),
               },
             },
           };
@@ -112,6 +116,7 @@ export const useTrackingStore = create<TrackingStore>()(
               [pmid]: {
                 ...existing,
                 tags: tags.filter(t => t !== tag),
+                tagsUpdatedAt: new Date().toISOString(),
               },
             },
           };
@@ -127,6 +132,23 @@ export const useTrackingStore = create<TrackingStore>()(
               [pmid]: {
                 ...existing,
                 relevance,
+                relevanceUpdatedAt: new Date().toISOString(),
+              },
+            },
+          };
+        });
+      },
+
+      setPriority: (pmid: string, priority: PaperPriority | undefined) => {
+        set(state => {
+          const existing = state.tracking[pmid] ?? defaultTracking(pmid);
+          return {
+            tracking: {
+              ...state.tracking,
+              [pmid]: {
+                ...existing,
+                priority,
+                priorityUpdatedAt: new Date().toISOString(),
               },
             },
           };
@@ -142,6 +164,26 @@ export const useTrackingStore = create<TrackingStore>()(
               [pmid]: {
                 ...existing,
                 takeaway,
+                takeawayUpdatedAt: new Date().toISOString(),
+              },
+            },
+          };
+        });
+      },
+
+      setTrialData: (pmid: string, trialData: TrialData) => {
+        set(state => {
+          const existing = state.tracking[pmid] ?? defaultTracking(pmid);
+          return {
+            tracking: {
+              ...state.tracking,
+              [pmid]: {
+                ...existing,
+                trialData: {
+                  ...trialData,
+                  trialDataUpdatedAt: new Date().toISOString(),
+                },
+                trialDataUpdatedAt: new Date().toISOString(),
               },
             },
           };

@@ -10,6 +10,12 @@ export function ReadingListView() {
   const [papers, setPapers] = useState<Paper[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const handleClear = () => {
+    if (window.confirm('Clear every article from your reading list? Paper notes and cached articles will stay saved.')) {
+      clearReadingList();
+    }
+  };
+
   useEffect(() => {
     let cancelled = false;
 
@@ -61,7 +67,7 @@ export function ReadingListView() {
         {papers.length > 0 && (
           <button
             type="button"
-            onClick={clearReadingList}
+            onClick={handleClear}
             className="text-xs text-gray-400 hover:text-red-500 transition-colors"
           >
             Clear all

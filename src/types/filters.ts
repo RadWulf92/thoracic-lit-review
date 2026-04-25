@@ -1,7 +1,7 @@
 import type { PaperCategory } from '../utils/paperClassifier';
-import type { ClinicalRelevance } from './paper';
+import type { ClinicalRelevance, PaperPriority } from './paper';
 
-export type SortField = 'date' | 'rating' | 'readStatus' | 'journal' | 'relevance';
+export type SortField = 'date' | 'rating' | 'readStatus' | 'journal' | 'relevance' | 'priority';
 export type SortDirection = 'asc' | 'desc';
 
 export interface FilterState {
@@ -14,6 +14,7 @@ export interface FilterState {
   ratingMin: number;
   tags: string[];
   relevance: ClinicalRelevance[];
+  priority: PaperPriority[];
   sortField: SortField;
   sortDirection: SortDirection;
 }

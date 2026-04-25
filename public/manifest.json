@@ -1,7 +1,7 @@
 {
-  "name": "Thoracic Oncology Literature Review",
-  "short_name": "ThoracicLitReview",
-  "description": "Literature review tool for thoracic oncology papers from PubMed",
+  "name": "Oncology Literature Review",
+  "short_name": "OncLitReview",
+  "description": "Literature review tool for thoracic and acute oncology papers from PubMed",
   "start_url": "/thoracic-lit-review/",
   "display": "standalone",
   "background_color": "#f8fafc",

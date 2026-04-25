@@ -4,6 +4,7 @@ import { JournalFilter } from './JournalFilter';
 import { PaperTypeFilter } from './PaperTypeFilter';
 import { TagFilter } from './TagFilter';
 import { RelevanceFilter } from './RelevanceFilter';
+import { PriorityFilter } from './PriorityFilter';
 import { SortSelector } from './SortSelector';
 import { useFilterStore } from '../../stores/filterStore';
 
@@ -40,6 +41,7 @@ export function FilterBar() {
         <div className="flex flex-wrap items-center gap-2">
           <JournalFilter />
           <PaperTypeFilter />
+          <PriorityFilter />
           <RelevanceFilter />
           <TagFilter />
 

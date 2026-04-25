@@ -3,7 +3,7 @@ import { usePaperStore } from '../stores/paperStore';
 import { useTrackingStore } from '../stores/trackingStore';
 import { useFilterStore } from '../stores/filterStore';
 import { classifyPaper } from '../utils/paperClassifier';
-import { ALL_RELEVANCE_LEVELS } from '../types/paper';
+import { ALL_PRIORITY_LEVELS, ALL_RELEVANCE_LEVELS } from '../types/paper';
 import type { Paper } from '../types/paper';
 
 export function useFilteredPapers(): Paper[] {
@@ -83,6 +83,14 @@ export function useFilteredPapers(): Paper[] {
       });
     }
 
+    // Priority filter
+    if (filters.priority.length > 0) {
+      result = result.filter(p => {
+        const t = tracking[p.pmid];
+        return t?.priority != null && filters.priority.includes(t.priority);
+      });
+    }
+
     // Sort
     result.sort((a, b) => {
       const dir = filters.sortDirection === 'asc' ? 1 : -1;
@@ -106,9 +114,17 @@ export function useFilteredPapers(): Paper[] {
           const relOrder = ALL_RELEVANCE_LEVELS;
           const ra = tracking[a.pmid]?.relevance;
           const rb = tracking[b.pmid]?.relevance;
-          const ia = ra ? relOrder.indexOf(ra) : relOrder.length;
-          const ib = rb ? relOrder.indexOf(rb) : relOrder.length;
-          return dir * (ia - ib);
+          const scoreA = ra ? relOrder.length - relOrder.indexOf(ra) : 0;
+          const scoreB = rb ? relOrder.length - relOrder.indexOf(rb) : 0;
+          return dir * (scoreA - scoreB);
+        }
+        case 'priority': {
+          const priorityOrder = ALL_PRIORITY_LEVELS;
+          const pa = tracking[a.pmid]?.priority;
+          const pb = tracking[b.pmid]?.priority;
+          const scoreA = pa ? priorityOrder.length - priorityOrder.indexOf(pa) : 0;
+          const scoreB = pb ? priorityOrder.length - priorityOrder.indexOf(pb) : 0;
+          return dir * (scoreA - scoreB);
         }
         default:
           return 0;

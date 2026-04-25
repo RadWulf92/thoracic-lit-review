@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { useSettingsStore } from '../../stores/settingsStore';
 import type { JournalInfo } from '../../constants/journals';
+import type { Collection } from '../../utils/queryBuilder';
+import { AuthSection } from './AuthSection';
 
 interface SettingsPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  activeCollection: Collection;
 }
 
 const FALLBACK_COLORS = [
@@ -13,8 +16,37 @@ const FALLBACK_COLORS = [
   'journal-clin-lung', 'journal-transl-lung',
 ];
 
-export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
-  const { journals, addJournal, removeJournal, resetJournals } = useSettingsStore();
+const COLLECTION_LABELS: Record<Collection, { title: string; accent: string; accentBg: string; btnColor: string; btnHover: string; tag: string }> = {
+  'thoracic': {
+    title: 'Thoracic Oncology Journals',
+    accent: 'text-cyan-600',
+    accentBg: 'bg-cyan-50',
+    btnColor: 'bg-cyan-600',
+    btnHover: 'hover:bg-cyan-700',
+    tag: 'Thoracic-specific',
+  },
+  'acute-oncology': {
+    title: 'Acute Oncology Journals',
+    accent: 'text-orange-600',
+    accentBg: 'bg-orange-50',
+    btnColor: 'bg-orange-600',
+    btnHover: 'hover:bg-orange-700',
+    tag: 'Acute-specific',
+  },
+};
+
+export function SettingsPanel({ isOpen, onClose, activeCollection }: SettingsPanelProps) {
+  const {
+    journals, addJournal, removeJournal, resetJournals,
+    acuteJournals, addAcuteJournal, removeAcuteJournal, resetAcuteJournals,
+  } = useSettingsStore();
+
+  const isAcute = activeCollection === 'acute-oncology';
+  const displayJournals = isAcute ? acuteJournals : journals;
+  const handleAdd = isAcute ? addAcuteJournal : addJournal;
+  const handleRemove = isAcute ? removeAcuteJournal : removeJournal;
+  const handleReset = isAcute ? resetAcuteJournals : resetJournals;
+  const collStyle = COLLECTION_LABELS[activeCollection];
 
   const [newName, setNewName] = useState('');
   const [newAbbrev, setNewAbbrev] = useState('');
@@ -23,17 +55,17 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
 
   if (!isOpen) return null;
 
-  const handleAdd = () => {
+  const onAdd = () => {
     if (!newName.trim() || !newAbbrev.trim()) {
       setError('Both name and PubMed abbreviation are required.');
       return;
     }
-    if (journals.some(j => j.abbrev === newAbbrev.trim())) {
+    if (displayJournals.some(j => j.abbrev === newAbbrev.trim())) {
       setError('A journal with this abbreviation already exists.');
       return;
     }
 
-    const color = FALLBACK_COLORS[journals.length % FALLBACK_COLORS.length];
+    const color = FALLBACK_COLORS[displayJournals.length % FALLBACK_COLORS.length];
     const journal: JournalInfo = {
       full: newName.trim(),
       abbrev: newAbbrev.trim(),
@@ -42,11 +74,23 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
       isThoracicSpecific: newIsThoracic,
     };
 
-    addJournal(journal);
+    handleAdd(journal);
     setNewName('');
     setNewAbbrev('');
     setNewIsThoracic(false);
     setError('');
+  };
+
+  const onRemoveJournal = (abbrev: string) => {
+    if (window.confirm(`Remove ${abbrev} from this collection's journal list? Existing notes and cached papers will stay saved.`)) {
+      handleRemove(abbrev);
+    }
+  };
+
+  const onResetJournals = () => {
+    if (window.confirm(`Reset the ${isAcute ? 'acute oncology' : 'thoracic oncology'} journal list to defaults? Existing notes and cached papers will stay saved.`)) {
+      handleReset();
+    }
   };
 
   return (
@@ -72,11 +116,25 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
-          <h3 className="text-sm font-medium text-gray-700 mb-3">Tracked Journals ({journals.length})</h3>
+          <AuthSection />
+
+          {/* Collection indicator */}
+          <div className={`flex items-center gap-2 mb-3 px-3 py-2 rounded-lg ${collStyle.accentBg}`}>
+            <span className={`text-xs font-medium ${collStyle.accent}`}>
+              Current section:
+            </span>
+            <span className={`text-xs font-bold ${collStyle.accent}`}>
+              {isAcute ? 'Acute Oncology' : 'Thoracic Oncology'}
+            </span>
+          </div>
+
+          <h3 className="text-sm font-medium text-gray-700 mb-3">
+            {collStyle.title} ({displayJournals.length})
+          </h3>
 
           {/* Journal list */}
           <div className="space-y-2 mb-6">
-            {journals.map(journal => (
+            {displayJournals.map(journal => (
               <div
                 key={journal.abbrev}
                 className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
@@ -86,13 +144,13 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                   <p className="text-xs text-gray-500">
                     {journal.abbrev}
                     {journal.isThoracicSpecific && (
-                      <span className="ml-2 text-cyan-600">Thoracic-specific</span>
+                      <span className="ml-2 text-cyan-600">{collStyle.tag}</span>
                     )}
                   </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => removeJournal(journal.abbrev)}
+                  onClick={() => onRemoveJournal(journal.abbrev)}
                   className="ml-2 p-1 text-gray-400 hover:text-red-500 transition-colors"
                   title="Remove journal"
                 >
@@ -136,22 +194,31 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
                 />
               </div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={newIsThoracic}
-                  onChange={e => setNewIsThoracic(e.target.checked)}
-                  className="rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
-                />
-                <span className="text-sm text-gray-600">Thoracic-specific journal</span>
-              </label>
-              <p className="text-xs text-gray-400">
-                Thoracic-specific journals fetch all papers. Other journals are filtered by lung cancer / thoracic oncology terms.
-              </p>
+              {!isAcute && (
+                <>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newIsThoracic}
+                      onChange={e => setNewIsThoracic(e.target.checked)}
+                      className="rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
+                    />
+                    <span className="text-sm text-gray-600">Thoracic-specific journal</span>
+                  </label>
+                  <p className="text-xs text-gray-400">
+                    Thoracic-specific journals fetch all papers. Other journals are filtered by lung cancer / thoracic oncology terms.
+                  </p>
+                </>
+              )}
+              {isAcute && (
+                <p className="text-xs text-gray-400">
+                  All acute oncology journals are filtered by acute oncology search terms (emergencies, toxicity, supportive care, etc.)
+                </p>
+              )}
               <button
                 type="button"
-                onClick={handleAdd}
-                className="w-full px-4 py-2 bg-cyan-600 text-white text-sm font-medium rounded-lg hover:bg-cyan-700 transition-colors"
+                onClick={onAdd}
+                className={`w-full px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors ${collStyle.btnColor} ${collStyle.btnHover}`}
               >
                 Add Journal
               </button>
@@ -162,10 +229,10 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
           <div className="border-t border-gray-200 mt-6 pt-4">
             <button
               type="button"
-              onClick={resetJournals}
+              onClick={onResetJournals}
               className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
             >
-              Reset to default journals
+              Reset to default {isAcute ? 'acute oncology' : 'thoracic'} journals
             </button>
           </div>
         </div>

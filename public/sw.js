@@ -1,4 +1,4 @@
-const CACHE_NAME = 'thoracic-lit-review-v1';
+const CACHE_NAME = 'thoracic-lit-review-v2';
 
 // Cache the app shell on install
 self.addEventListener('install', (event) => {
@@ -34,6 +34,10 @@ self.addEventListener('fetch', (event) => {
 
   // Skip PubMed API calls — always go to network
   if (event.request.url.includes('eutils.ncbi.nlm.nih.gov')) return;
+  if (event.request.url.includes('firestore.googleapis.com')) return;
+  if (event.request.url.includes('firebaseinstallations.googleapis.com')) return;
+  if (event.request.url.includes('identitytoolkit.googleapis.com')) return;
+  if (event.request.url.includes('securetoken.googleapis.com')) return;
 
   event.respondWith(
     fetch(event.request)
