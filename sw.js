@@ -1,4 +1,4 @@
-const CACHE_NAME = 'thoracic-lit-review-v3';
+const CACHE_NAME = 'thoracic-lit-review-v4';
 const NETWORK_ONLY_HOSTS = [
   'eutils.ncbi.nlm.nih.gov',
   'firestore.googleapis.com',
