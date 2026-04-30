@@ -12,13 +12,31 @@ function getApiKey(): string | undefined {
   return import.meta.env.VITE_PUBMED_API_KEY || undefined;
 }
 
-function appendApiKey(url: string): string {
+function appendApiKey(params: URLSearchParams): URLSearchParams {
   const key = getApiKey();
   if (key) {
-    const sep = url.includes('?') ? '&' : '?';
-    return `${url}${sep}api_key=${key}`;
+    params.set('api_key', key);
   }
-  return url;
+  return params;
+}
+
+async function postToPubMed(endpoint: string, params: URLSearchParams, label: string): Promise<Response> {
+  const response = await rateLimiter.enqueue(() =>
+    fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+      },
+      body: appendApiKey(params).toString(),
+      credentials: 'omit',
+    })
+  );
+
+  if (!response.ok) {
+    throw new Error(`${label} failed: ${response.status} ${response.statusText}`);
+  }
+
+  return response;
 }
 
 async function esearch(query: string, retmax = DEFAULT_RETMAX): Promise<string[]> {
@@ -29,13 +47,7 @@ async function esearch(query: string, retmax = DEFAULT_RETMAX): Promise<string[]
     retmode: 'json',
   });
 
-  const url = appendApiKey(`${PUBMED_ESEARCH}?${params}`);
-
-  const response = await rateLimiter.enqueue(() => fetch(url));
-  if (!response.ok) {
-    throw new Error(`esearch failed: ${response.status} ${response.statusText}`);
-  }
-
+  const response = await postToPubMed(PUBMED_ESEARCH, params, 'PubMed search');
   const data = await response.json();
   return data.esearchresult?.idlist ?? [];
 }
@@ -50,13 +62,7 @@ async function efetch(pmids: string[]): Promise<Paper[]> {
     retmode: 'xml',
   });
 
-  const url = appendApiKey(`${PUBMED_EFETCH}?${params}`);
-
-  const response = await rateLimiter.enqueue(() => fetch(url));
-  if (!response.ok) {
-    throw new Error(`efetch failed: ${response.status} ${response.statusText}`);
-  }
-
+  const response = await postToPubMed(PUBMED_EFETCH, params, 'PubMed fetch');
   const xml = await response.text();
   return parsePubMedXml(xml);
 }

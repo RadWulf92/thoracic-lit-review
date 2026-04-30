@@ -92,10 +92,16 @@ export const usePaperStore = create<PaperStore>((set, get) => ({
         activeJournalAbbrevs: journalAbbrevs,
       });
     } catch (err) {
+      const message = err instanceof TypeError
+        ? 'Could not reach PubMed. Check the phone network connection, disable content blockers for this site, then try Fetch again.'
+        : err instanceof Error
+          ? err.message
+          : 'Failed to fetch papers';
+
       set({
         isLoading: false,
         progressMessage: null,
-        error: err instanceof Error ? err.message : 'Failed to fetch papers',
+        error: message,
       });
     }
   },

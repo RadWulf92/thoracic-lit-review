@@ -1,4 +1,11 @@
-const CACHE_NAME = 'thoracic-lit-review-v2';
+const CACHE_NAME = 'thoracic-lit-review-v3';
+const NETWORK_ONLY_HOSTS = [
+  'eutils.ncbi.nlm.nih.gov',
+  'firestore.googleapis.com',
+  'firebaseinstallations.googleapis.com',
+  'identitytoolkit.googleapis.com',
+  'securetoken.googleapis.com',
+];
 
 // Cache the app shell on install
 self.addEventListener('install', (event) => {
@@ -15,7 +22,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Clean old caches on activate
+// Clean old app-shell caches on activate; user review data lives in IndexedDB/localStorage.
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
@@ -32,12 +39,8 @@ self.addEventListener('fetch', (event) => {
   // Skip non-GET requests
   if (event.request.method !== 'GET') return;
 
-  // Skip PubMed API calls — always go to network
-  if (event.request.url.includes('eutils.ncbi.nlm.nih.gov')) return;
-  if (event.request.url.includes('firestore.googleapis.com')) return;
-  if (event.request.url.includes('firebaseinstallations.googleapis.com')) return;
-  if (event.request.url.includes('identitytoolkit.googleapis.com')) return;
-  if (event.request.url.includes('securetoken.googleapis.com')) return;
+  const requestUrl = new URL(event.request.url);
+  if (NETWORK_ONLY_HOSTS.includes(requestUrl.hostname)) return;
 
   event.respondWith(
     fetch(event.request)
