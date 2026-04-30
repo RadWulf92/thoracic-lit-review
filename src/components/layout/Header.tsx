@@ -40,6 +40,10 @@ export function Header({ onOpenSettings, activeCollection, onCollectionChange }:
 
   const readCount = papers.filter(p => tracking[p.pmid]?.isRead).length;
   const totalCount = papers.length;
+  const newestPaperDate = papers.reduce<string | null>(
+    (latest, paper) => (!latest || paper.pubDate > latest ? paper.pubDate : latest),
+    null
+  );
 
   const handleFetch = () => {
     const now = new Date();
@@ -56,6 +60,9 @@ export function Header({ onOpenSettings, activeCollection, onCollectionChange }:
   const lastFetchDisplay = lastFetchedAt
     ? new Date(lastFetchedAt).toLocaleString()
     : 'Never';
+  const newestPaperDisplay = newestPaperDate
+    ? new Date(`${newestPaperDate}T00:00:00`).toLocaleDateString()
+    : 'None';
 
   const collConfig = COLLECTION_CONFIG[activeCollection];
 
@@ -74,6 +81,8 @@ export function Header({ onOpenSettings, activeCollection, onCollectionChange }:
               <span className="text-green-600">{readCount} read</span>
               <span className="hidden sm:inline text-gray-300">|</span>
               <span className="hidden sm:inline">{totalCount - readCount} unread</span>
+              <span className="hidden sm:inline text-gray-300">|</span>
+              <span className="hidden sm:inline">Newest: {newestPaperDisplay}</span>
               <span className="hidden sm:inline text-gray-300">|</span>
               <span className="hidden sm:inline">Last fetch: {lastFetchDisplay}</span>
             </div>
@@ -249,6 +258,9 @@ export function Header({ onOpenSettings, activeCollection, onCollectionChange }:
               })}
             </div>
 
+            <div className="text-xs text-gray-500">
+              Newest paper: {newestPaperDisplay}
+            </div>
             <div className="text-xs text-gray-500">
               Last fetch: {lastFetchDisplay}
             </div>

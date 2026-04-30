@@ -8,7 +8,6 @@ import { useFilteredPapers } from './hooks/useFilteredPapers';
 import { Header } from './components/layout/Header';
 import { FilterBar } from './components/filters/FilterBar';
 import { PaperList } from './components/papers/PaperList';
-import { PriorityQueue } from './components/priority/PriorityQueue';
 import { InsightsPanel } from './components/insights/InsightsPanel';
 import { WeeklyView } from './components/weekly/WeeklyView';
 import { ArticleSearch } from './components/search/ArticleSearch';
@@ -19,17 +18,16 @@ import { SettingsPanel } from './components/settings/SettingsPanel';
 import { StatsPanel } from './components/dashboard/StatsPanel';
 import type { Collection } from './utils/queryBuilder';
 
-type ViewMode = 'priority' | 'insights' | 'list' | 'weekly' | 'search' | 'reading-list' | 'review';
+type ViewMode = 'list' | 'weekly' | 'insights' | 'search' | 'reading-list' | 'review';
 
 const NAV_ITEMS: { id: ViewMode; label: string; mobileLabel: string; icon: React.ReactNode }[] = [
   {
-    id: 'priority',
-    label: 'Priority',
-    mobileLabel: 'Top',
+    id: 'list',
+    label: 'List',
+    mobileLabel: 'List',
     icon: (
       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3.75l2.142 4.339 4.79.696-3.466 3.378.818 4.771L12 14.681l-4.284 2.253.818-4.771-3.466-3.378 4.79-.696L12 3.75z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75v1.5m-5.25-1.5l-1.061 1.061m11.561-1.061l1.061 1.061" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
       </svg>
     ),
   },
@@ -42,16 +40,6 @@ const NAV_ITEMS: { id: ViewMode; label: string; mobileLabel: string; icon: React
         <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75z" />
         <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625z" />
         <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'list',
-    label: 'List',
-    mobileLabel: 'List',
-    icon: (
-      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
       </svg>
     ),
   },
@@ -98,7 +86,7 @@ const NAV_ITEMS: { id: ViewMode; label: string; mobileLabel: string; icon: React
 ];
 
 function App() {
-  const [viewMode, setViewMode] = useState<ViewMode>('priority');
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [activeCollection, setActiveCollection] = useState<Collection>('thoracic');
   const loadCachedPapers = usePaperStore(s => s.loadCachedPapers);
@@ -118,13 +106,13 @@ function App() {
     setActiveCollection(coll);
     const journalList = coll === 'acute-oncology' ? acuteJournals : journals;
     const abbrevs = journalList.map(j => j.abbrev);
-    loadCachedPapers(abbrevs);
+    loadCachedPapers(abbrevs, coll, journalList);
   };
 
   // Load cached papers on mount, filtered by the current collection.
   useEffect(() => {
     const journalList = activeCollection === 'acute-oncology' ? acuteJournals : journals;
-    loadCachedPapers(journalList.map(j => j.abbrev));
+    loadCachedPapers(journalList.map(j => j.abbrev), activeCollection, journalList);
   }, [activeCollection, acuteJournals, journals, loadCachedPapers]);
 
   // Start/stop Firestore sync when auth state changes
@@ -205,11 +193,6 @@ function App() {
         )}
 
         {/* Content */}
-        {viewMode === 'priority' && (
-          isLoading && papers.length === 0
-            ? <LoadingSpinner message="Loading papers..." />
-            : <PriorityQueue />
-        )}
         {viewMode === 'insights' && (
           isLoading && papers.length === 0
             ? <LoadingSpinner message="Loading papers..." />
@@ -232,7 +215,7 @@ function App() {
 
       {/* Mobile bottom navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 pb-[env(safe-area-inset-bottom)] sm:hidden z-20">
-        <div className="grid grid-cols-7">
+        <div className="grid grid-cols-6">
           {NAV_ITEMS.map(item => (
             <button
               key={item.id}

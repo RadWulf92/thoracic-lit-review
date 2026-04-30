@@ -4,7 +4,7 @@ import { fetchPapersForDateRange } from '../services/pubmedApi';
 import { getCachedPapers } from '../services/paperCache';
 import { formatDateISO } from '../utils/dateUtils';
 import type { JournalInfo } from '../constants/journals';
-import type { Collection } from '../utils/queryBuilder';
+import { paperMatchesCollection, type Collection } from '../utils/queryBuilder';
 
 interface PaperStore {
   papers: Paper[];
@@ -15,9 +15,10 @@ interface PaperStore {
   activeDateFrom: string | null;
   activeDateTo: string | null;
   activeJournalAbbrevs: string[];
+  activeCollection: Collection;
 
   fetchPapers: (from: Date, to: Date, journals?: JournalInfo[], collection?: Collection) => Promise<void>;
-  loadCachedPapers: (journalAbbrevs?: string[]) => Promise<void>;
+  loadCachedPapers: (journalAbbrevs?: string[], collection?: Collection, journals?: JournalInfo[]) => Promise<void>;
   setActiveJournals: (abbrevs: string[]) => void;
   clearError: () => void;
 }
@@ -29,6 +30,26 @@ function filterByDateRange(papers: Paper[], from: string | null, to: string | nu
   return result;
 }
 
+function filterForDisplay(
+  papers: Paper[],
+  from: string | null,
+  to: string | null,
+  journalAbbrevs: string[],
+  collection: Collection,
+  journals?: JournalInfo[]
+): Paper[] {
+  let result = filterByDateRange(papers, from, to);
+
+  if (journalAbbrevs.length > 0) {
+    const abbrevSet = new Set(journalAbbrevs);
+    result = result.filter(p => abbrevSet.has(p.journalAbbrev));
+  }
+
+  return result
+    .filter(p => paperMatchesCollection(p, journals, collection))
+    .sort((a, b) => b.pubDate.localeCompare(a.pubDate));
+}
+
 export const usePaperStore = create<PaperStore>((set, get) => ({
   papers: [],
   isLoading: false,
@@ -38,6 +59,7 @@ export const usePaperStore = create<PaperStore>((set, get) => ({
   activeDateFrom: null,
   activeDateTo: null,
   activeJournalAbbrevs: [],
+  activeCollection: 'thoracic',
 
   fetchPapers: async (from: Date, to: Date, journals?: JournalInfo[], collection?: Collection) => {
     const journalAbbrevs = journals ? journals.map(j => j.abbrev) : [];
@@ -50,6 +72,7 @@ export const usePaperStore = create<PaperStore>((set, get) => ({
       progressMessage: 'Starting fetch...',
       activeDateFrom: dateFromISO,
       activeDateTo: dateToISO,
+      activeCollection: collection ?? 'thoracic',
     });
 
     try {
@@ -67,19 +90,14 @@ export const usePaperStore = create<PaperStore>((set, get) => ({
       for (const p of cached) paperMap.set(p.pmid, p);
       for (const p of newPapers) paperMap.set(p.pmid, p);
 
-      let allPapersArr = Array.from(paperMap.values());
-
-      // Filter by active journals if set
-      if (journalAbbrevs.length > 0) {
-        const abbrevSet = new Set(journalAbbrevs);
-        allPapersArr = allPapersArr.filter(p => abbrevSet.has(p.journalAbbrev));
-      }
-
-      const allInRange = filterByDateRange(
-        allPapersArr,
+      const allInRange = filterForDisplay(
+        Array.from(paperMap.values()),
         dateFromISO,
-        dateToISO
-      ).sort((a, b) => b.pubDate.localeCompare(a.pubDate));
+        dateToISO,
+        journalAbbrevs,
+        collection ?? 'thoracic',
+        journals
+      );
 
       const now = new Date().toISOString();
       localStorage.setItem('thoracic-lit-last-fetch', now);
@@ -106,19 +124,15 @@ export const usePaperStore = create<PaperStore>((set, get) => ({
     }
   },
 
-  loadCachedPapers: async (journalAbbrevs?: string[]) => {
+  loadCachedPapers: async (journalAbbrevs?: string[], collection?: Collection, journals?: JournalInfo[]) => {
     try {
       const cached = await getCachedPapers();
-      const { activeDateFrom, activeDateTo, activeJournalAbbrevs } = get();
+      const { activeDateFrom, activeDateTo, activeJournalAbbrevs, activeCollection } = get();
       const abbrevs = journalAbbrevs ?? activeJournalAbbrevs;
+      const coll = collection ?? activeCollection;
 
-      let filtered = filterByDateRange(cached, activeDateFrom, activeDateTo);
-      if (abbrevs.length > 0) {
-        const abbrevSet = new Set(abbrevs);
-        filtered = filtered.filter(p => abbrevSet.has(p.journalAbbrev));
-      }
-      const sorted = filtered.sort((a, b) => b.pubDate.localeCompare(a.pubDate));
-      set({ papers: sorted, activeJournalAbbrevs: abbrevs });
+      const filtered = filterForDisplay(cached, activeDateFrom, activeDateTo, abbrevs, coll, journals);
+      set({ papers: filtered, activeJournalAbbrevs: abbrevs, activeCollection: coll });
     } catch (err) {
       console.error('Failed to load cached papers:', err);
     }

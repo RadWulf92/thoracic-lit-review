@@ -45,6 +45,7 @@ async function esearch(query: string, retmax = DEFAULT_RETMAX): Promise<string[]
     term: query,
     retmax: String(retmax),
     retmode: 'json',
+    sort: 'pub date',
   });
 
   const response = await postToPubMed(PUBMED_ESEARCH, params, 'PubMed search');
